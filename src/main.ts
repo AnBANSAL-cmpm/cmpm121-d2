@@ -29,18 +29,7 @@ canvas.addEventListener("mousedown", (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   currentStroke = [{ x, y }];
-});
-
-canvas.addEventListener("mouseup", () => {
-  if (isDrawing && currentStroke.length > 0) {
-    drawing.push(currentStroke);
-  }
-  isDrawing = false;
-  currentStroke = [];
-});
-
-canvas.addEventListener("mouseleave", () => {
-  isDrawing = false;
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -54,6 +43,23 @@ canvas.addEventListener("mousemove", (e) => {
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
+canvas.addEventListener("mouseleave", () => {
+  if (isDrawing && currentStroke.length > 0) {
+    drawing.push(currentStroke);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
+  isDrawing = false;
+  currentStroke = [];
+});
+
+canvas.addEventListener("mouseup", () => {
+  if (isDrawing && currentStroke.length > 0) {
+    drawing.push(currentStroke);
+  }
+  isDrawing = false;
+  currentStroke = [];
+});
+
 // Clear Button
 const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
@@ -61,6 +67,8 @@ clearButton.id = "clear-button";
 document.body.appendChild(clearButton);
 
 clearButton.addEventListener("click", () => {
+  drawing.length = 0;
+  currentStroke = [];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
@@ -69,11 +77,20 @@ canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (const stroke of drawing) {
-    if (stroke.length === 0) continue;
+    if (stroke.length < 2) continue;
     ctx.beginPath();
     ctx.moveTo(stroke[0].x, stroke[0].y);
     for (let i = 1; i < stroke.length; i++) {
       ctx.lineTo(stroke[i].x, stroke[i].y);
+    }
+    ctx.stroke();
+  }
+
+  if (currentStroke.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+    for (let i = 1; i < currentStroke.length; i++) {
+      ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
     }
     ctx.stroke();
   }
