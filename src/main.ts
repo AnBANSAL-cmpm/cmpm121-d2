@@ -22,6 +22,7 @@ if (!ctx) {
 }
 
 let isDrawing = false;
+let redoStack: Array<Array<{ x: number; y: number }>> = [];
 
 canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
@@ -46,6 +47,7 @@ canvas.addEventListener("mousemove", (e) => {
 canvas.addEventListener("mouseleave", () => {
   if (isDrawing && currentStroke.length > 0) {
     drawing.push(currentStroke);
+    redoStack = [];
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
   isDrawing = false;
@@ -55,6 +57,8 @@ canvas.addEventListener("mouseleave", () => {
 canvas.addEventListener("mouseup", () => {
   if (isDrawing && currentStroke.length > 0) {
     drawing.push(currentStroke);
+    redoStack = [];
+    canvas.dispatchEvent(new Event("drawing-changed"));
   }
   isDrawing = false;
   currentStroke = [];
@@ -65,6 +69,36 @@ const clearButton = document.createElement("button");
 clearButton.textContent = "Clear";
 clearButton.id = "clear-button";
 document.body.appendChild(clearButton);
+
+const undoButton = document.createElement("button");
+undoButton.textContent = "Undo";
+undoButton.id = "undo-button";
+document.body.appendChild(undoButton);
+
+const redoButton = document.createElement("button");
+redoButton.textContent = "Redo";
+redoButton.id = "redo-button";
+document.body.appendChild(redoButton);
+
+undoButton.addEventListener("click", () => {
+  if (drawing.length > 0) {
+    const lastStroke = drawing.pop();
+    if (lastStroke) {
+      redoStack.push(lastStroke);
+    }
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
+});
+
+redoButton.addEventListener("click", () => {
+  if (redoStack.length > 0) {
+    const stroke = redoStack.pop();
+    if (stroke) {
+      drawing.push(stroke);
+    }
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  }
+});
 
 clearButton.addEventListener("click", () => {
   drawing.length = 0;
