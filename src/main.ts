@@ -17,8 +17,10 @@ let redoStack: MarkerLine[] = [];
 
 class MarkerLine {
   private points: Array<{ x: number; y: number }> = [];
+  private thickness: number;
 
-  constructor(startX: number, startY: number) {
+  constructor(startX: number, startY: number, thickness: number) {
+    this.thickness = thickness;
     this.points.push({ x: startX, y: startY });
   }
 
@@ -33,9 +35,25 @@ class MarkerLine {
     for (let i = 1; i < this.points.length; i++) {
       ctx.lineTo(this.points[i].x, this.points[i].y);
     }
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.lineWidth = this.thickness;
+    ctx.strokeStyle = "black";
     ctx.stroke();
   }
 }
+
+let currentThickness = 2;
+
+const thinButton = document.createElement("button");
+thinButton.textContent = "Thin";
+thinButton.id = "thin-button";
+document.body.appendChild(thinButton);
+
+const thickButton = document.createElement("button");
+thickButton.textContent = "Thick";
+thickButton.id = "thick-button";
+document.body.appendChild(thickButton);
 
 const ctx = canvas.getContext("2d");
 if (!ctx) {
@@ -44,6 +62,19 @@ if (!ctx) {
   throw new Error("Failed to get 2D context");
 }
 
+function selectTool(thickness: number) {
+  currentThickness = thickness;
+
+  thinButton.classList.toggle("selected", thickness === 2);
+  thickButton.classList.toggle("selected", thickness === 8);
+}
+
+thinButton.addEventListener("click", () => selectTool(2));
+thickButton.addEventListener("click", () => selectTool(8));
+
+// Initialize with thin tool selected
+selectTool(2);
+
 let isDrawing = false;
 
 canvas.addEventListener("mousedown", (e) => {
@@ -51,7 +82,7 @@ canvas.addEventListener("mousedown", (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  currentStroke = new MarkerLine(x, y);
+  currentStroke = new MarkerLine(x, y, currentThickness);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
