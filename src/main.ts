@@ -11,8 +11,31 @@ canvas.height = 256;
 canvas.id = "sketchup-canvas";
 document.body.appendChild(canvas);
 
-let currentStroke: Array<{ x: number; y: number }> = [];
-const drawing: Array<Array<{ x: number; y: number }>> = [];
+let currentStroke: MarkerLine | null = null;
+const drawing: MarkerLine[] = [];
+let redoStack: MarkerLine[] = [];
+
+class MarkerLine {
+  private points: Array<{ x: number; y: number }> = [];
+
+  constructor(startX: number, startY: number) {
+    this.points.push({ x: startX, y: startY });
+  }
+
+  drag(x: number, y: number) {
+    this.points.push({ x, y });
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    if (this.points.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(this.points[0].x, this.points[0].y);
+    for (let i = 1; i < this.points.length; i++) {
+      ctx.lineTo(this.points[i].x, this.points[i].y);
+    }
+    ctx.stroke();
+  }
+}
 
 const ctx = canvas.getContext("2d");
 if (!ctx) {
@@ -22,46 +45,45 @@ if (!ctx) {
 }
 
 let isDrawing = false;
-let redoStack: Array<Array<{ x: number; y: number }>> = [];
 
 canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  currentStroke = [{ x, y }];
+  currentStroke = new MarkerLine(x, y);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!isDrawing || !ctx) return;
+  if (!isDrawing || !ctx || !currentStroke) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  currentStroke.push({ x, y });
+  currentStroke.drag(x, y);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mouseleave", () => {
-  if (isDrawing && currentStroke.length > 0) {
+  if (isDrawing && currentStroke) {
     drawing.push(currentStroke);
     redoStack = [];
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
   isDrawing = false;
-  currentStroke = [];
+  currentStroke = null;
 });
 
 canvas.addEventListener("mouseup", () => {
-  if (isDrawing && currentStroke.length > 0) {
+  if (isDrawing && currentStroke) {
     drawing.push(currentStroke);
     redoStack = [];
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
   isDrawing = false;
-  currentStroke = [];
+  currentStroke = null;
 });
 
 // Clear Button
@@ -82,9 +104,9 @@ document.body.appendChild(redoButton);
 
 undoButton.addEventListener("click", () => {
   if (drawing.length > 0) {
-    const lastStroke = drawing.pop();
-    if (lastStroke) {
-      redoStack.push(lastStroke);
+    const undone = drawing.pop();
+    if (undone) {
+      redoStack.push(undone);
     }
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
@@ -92,9 +114,9 @@ undoButton.addEventListener("click", () => {
 
 redoButton.addEventListener("click", () => {
   if (redoStack.length > 0) {
-    const stroke = redoStack.pop();
-    if (stroke) {
-      drawing.push(stroke);
+    const redone = redoStack.pop();
+    if (redone) {
+      drawing.push(redone);
     }
     canvas.dispatchEvent(new Event("drawing-changed"));
   }
@@ -102,7 +124,8 @@ redoButton.addEventListener("click", () => {
 
 clearButton.addEventListener("click", () => {
   drawing.length = 0;
-  currentStroke = [];
+  redoStack.length = 0;
+  currentStroke = null;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
@@ -111,21 +134,10 @@ canvas.addEventListener("drawing-changed", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   for (const stroke of drawing) {
-    if (stroke.length < 2) continue;
-    ctx.beginPath();
-    ctx.moveTo(stroke[0].x, stroke[0].y);
-    for (let i = 1; i < stroke.length; i++) {
-      ctx.lineTo(stroke[i].x, stroke[i].y);
-    }
-    ctx.stroke();
+    stroke.display(ctx);
   }
 
-  if (currentStroke.length > 1) {
-    ctx.beginPath();
-    ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
-    for (let i = 1; i < currentStroke.length; i++) {
-      ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
-    }
-    ctx.stroke();
+  if (currentStroke) {
+    currentStroke.display(ctx);
   }
 });
