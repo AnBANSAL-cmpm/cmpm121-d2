@@ -43,6 +43,20 @@ class MarkerLine {
   }
 }
 
+class ToolPreview {
+  constructor(public x: number, public y: number, public thickness: number) {}
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
+    ctx.strokeStyle = "gray";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 2]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
 let currentThickness = 2;
 
 const thinButton = document.createElement("button");
@@ -62,6 +76,8 @@ if (!ctx) {
   throw new Error("Failed to get 2D context");
 }
 
+const context = ctx as CanvasRenderingContext2D;
+
 function selectTool(thickness: number) {
   currentThickness = thickness;
 
@@ -76,6 +92,7 @@ thickButton.addEventListener("click", () => selectTool(8));
 selectTool(2);
 
 let isDrawing = false;
+let toolPreview: ToolPreview | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
@@ -87,24 +104,28 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!isDrawing || !ctx || !currentStroke) return;
+  if (!context) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  currentStroke.drag(x, y);
-  canvas.dispatchEvent(new Event("drawing-changed"));
+  toolPreview = new ToolPreview(x, y, currentThickness);
+  canvas.dispatchEvent(new Event("tool-moved"));
+
+  if (isDrawing && currentStroke) {
+    currentStroke.drag(x, y);
+    canvas.dispatchEvent(new Event("drawing-changed"));
+  } else {
+    canvas.dispatchEvent(new Event("tool-moved"));
+  }
 });
 
 canvas.addEventListener("mouseleave", () => {
-  if (isDrawing && currentStroke) {
-    drawing.push(currentStroke);
-    redoStack = [];
-    canvas.dispatchEvent(new Event("drawing-changed"));
-  }
   isDrawing = false;
   currentStroke = null;
+  toolPreview = null;
+  canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mouseup", () => {
@@ -116,6 +137,25 @@ canvas.addEventListener("mouseup", () => {
   isDrawing = false;
   currentStroke = null;
 });
+
+function redraw() {
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const stroke of drawing) {
+    stroke.display(context);
+  }
+
+  if (currentStroke) {
+    currentStroke.display(context);
+  }
+
+  if (!isDrawing && toolPreview && context) {
+    toolPreview.display(context);
+  }
+}
+
+canvas.addEventListener("drawing-changed", redraw);
+canvas.addEventListener("tool-moved", redraw);
 
 // Clear Button
 const clearButton = document.createElement("button");
@@ -157,18 +197,6 @@ clearButton.addEventListener("click", () => {
   drawing.length = 0;
   redoStack.length = 0;
   currentStroke = null;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  context.clearRect(0, 0, canvas.width, canvas.height);
   canvas.dispatchEvent(new Event("drawing-changed"));
-});
-
-canvas.addEventListener("drawing-changed", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  for (const stroke of drawing) {
-    stroke.display(ctx);
-  }
-
-  if (currentStroke) {
-    currentStroke.display(ctx);
-  }
 });
