@@ -11,9 +11,11 @@ canvas.height = 256;
 canvas.id = "sketchup-canvas";
 document.body.appendChild(canvas);
 
-let currentStroke: MarkerLine | null = null;
-const drawing: MarkerLine[] = [];
-let redoStack: MarkerLine[] = [];
+type Drawable = MarkerLine | StickerCommand;
+
+let currentStroke: Drawable | null = null;
+const drawing: Drawable[] = [];
+let redoStack: Drawable[] = [];
 
 class MarkerLine {
   private points: Array<{ x: number; y: number }> = [];
@@ -40,6 +42,42 @@ class MarkerLine {
     ctx.lineWidth = this.thickness;
     ctx.strokeStyle = "black";
     ctx.stroke();
+  }
+}
+
+class StickerCommand {
+  public x: number;
+  public y: number;
+  public emoji: string;
+
+  constructor(x: number, y: number, emoji: string) {
+    this.x = x;
+    this.y = y;
+    this.emoji = emoji;
+  }
+
+  drag(x: number, y: number) {
+    // Reposition instead of extending like a marker
+    this.x = x;
+    this.y = y;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.font = "32px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.emoji, this.x, this.y);
+  }
+}
+
+class StickerPreview {
+  constructor(public x: number, public y: number, public emoji: string) {}
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.font = "32px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(this.emoji, this.x, this.y);
   }
 }
 
@@ -92,26 +130,36 @@ thickButton.addEventListener("click", () => selectTool(8));
 selectTool(2);
 
 let isDrawing = false;
-let toolPreview: ToolPreview | null = null;
+let toolPreview: ToolPreview | StickerPreview | null = null;
+
+let currentTool: "marker" | "sticker" = "marker";
+let currentSticker: string | null = null;
 
 canvas.addEventListener("mousedown", (e) => {
   isDrawing = true;
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  currentStroke = new MarkerLine(x, y, currentThickness);
+  if (currentTool === "marker") {
+    currentStroke = new MarkerLine(x, y, currentThickness);
+  } else if (currentTool === "sticker" && currentSticker) {
+    currentStroke = new StickerCommand(x, y, currentSticker);
+  }
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
 canvas.addEventListener("mousemove", (e) => {
   if (!context) return;
-
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  toolPreview = new ToolPreview(x, y, currentThickness);
-  canvas.dispatchEvent(new Event("tool-moved"));
+  // Always show tool preview
+  if (currentTool === "marker") {
+    toolPreview = new ToolPreview(x, y, currentThickness);
+  } else if (currentTool === "sticker" && currentSticker) {
+    toolPreview = new StickerPreview(x, y, currentSticker);
+  }
 
   if (isDrawing && currentStroke) {
     currentStroke.drag(x, y);
@@ -199,4 +247,28 @@ clearButton.addEventListener("click", () => {
   currentStroke = null;
   context.clearRect(0, 0, canvas.width, canvas.height);
   canvas.dispatchEvent(new Event("drawing-changed"));
+});
+
+const stickerButtons = [
+  { emoji: "🌸", id: "flower-sticker" },
+  { emoji: "⭐", id: "star-sticker" },
+  { emoji: "🐱", id: "cat-sticker" },
+];
+
+stickerButtons.forEach(({ emoji, id }) => {
+  const btn = document.createElement("button");
+  btn.textContent = emoji;
+  btn.id = id;
+  btn.addEventListener("click", () => {
+    currentTool = "sticker";
+    currentSticker = emoji;
+    thinButton.classList.remove("selected");
+    thickButton.classList.remove("selected");
+    document.querySelectorAll(".sticker-selected").forEach((el) =>
+      el.classList.remove("sticker-selected")
+    );
+    btn.classList.add("sticker-selected");
+    canvas.dispatchEvent(new Event("tool-moved"));
+  });
+  document.body.appendChild(btn);
 });
