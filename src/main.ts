@@ -14,6 +14,7 @@ document.body.appendChild(canvas);
 type Drawable = MarkerLine | StickerCommand;
 
 let currentStroke: Drawable | null = null;
+let currentColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
 const drawing: Drawable[] = [];
 let redoStack: Drawable[] = [];
 
@@ -21,7 +22,12 @@ class MarkerLine {
   private points: Array<{ x: number; y: number }> = [];
   private thickness: number;
 
-  constructor(startX: number, startY: number, thickness: number) {
+  constructor(
+    startX: number,
+    startY: number,
+    thickness: number,
+    public color: string,
+  ) {
     this.thickness = thickness;
     this.points.push({ x: startX, y: startY });
   }
@@ -40,7 +46,8 @@ class MarkerLine {
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.lineWidth = this.thickness;
-    ctx.strokeStyle = "black";
+    ctx.strokeStyle = this.color;
+    ctx.fillStyle = this.color;
     ctx.stroke();
   }
 }
@@ -118,6 +125,7 @@ const context = ctx as CanvasRenderingContext2D;
 
 function selectTool(thickness: number) {
   currentThickness = thickness;
+  currentColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
 
   thinButton.classList.toggle("selected", thickness === 3);
   thickButton.classList.toggle("selected", thickness === 10);
@@ -141,7 +149,7 @@ canvas.addEventListener("mousedown", (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
   if (currentTool === "marker") {
-    currentStroke = new MarkerLine(x, y, currentThickness);
+    currentStroke = new MarkerLine(x, y, currentThickness, currentColor);
   } else if (currentTool === "sticker" && currentSticker) {
     currentStroke = new StickerCommand(x, y, currentSticker);
   }
