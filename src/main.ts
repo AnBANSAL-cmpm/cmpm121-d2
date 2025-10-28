@@ -255,20 +255,50 @@ const stickerButtons = [
   { emoji: "🐱", id: "cat-sticker" },
 ];
 
-stickerButtons.forEach(({ emoji, id }) => {
-  const btn = document.createElement("button");
-  btn.textContent = emoji;
-  btn.id = id;
-  btn.addEventListener("click", () => {
-    currentTool = "sticker";
-    currentSticker = emoji;
-    thinButton.classList.remove("selected");
-    thickButton.classList.remove("selected");
-    document.querySelectorAll(".sticker-selected").forEach((el) =>
-      el.classList.remove("sticker-selected")
-    );
-    btn.classList.add("sticker-selected");
-    canvas.dispatchEvent(new Event("tool-moved"));
+const stickerContainer = document.createElement("div");
+stickerContainer.id = "sticker-container";
+document.body.appendChild(stickerContainer);
+
+function renderStickerButtons() {
+  stickerContainer.innerHTML = "";
+
+  stickerButtons.forEach(({ emoji, id }) => {
+    const btn = document.createElement("button");
+    btn.textContent = emoji;
+    btn.id = id;
+    btn.addEventListener("click", () => {
+      currentTool = "sticker";
+      currentSticker = emoji;
+      thinButton.classList.remove("selected");
+      thickButton.classList.remove("selected");
+
+      document
+        .querySelectorAll(".sticker-selected")
+        .forEach((el) => el.classList.remove("sticker-selected"));
+      btn.classList.add("sticker-selected");
+      canvas.dispatchEvent(new Event("tool-moved"));
+    });
+    stickerContainer.appendChild(btn);
   });
-  document.body.appendChild(btn);
+
+  stickerContainer.appendChild(addStickerBtn);
+}
+
+const addStickerBtn = document.createElement("button");
+addStickerBtn.textContent = "➕ Add Sticker";
+addStickerBtn.id = "add-sticker-button";
+addStickerBtn.addEventListener("click", () => {
+  const userEmoji = prompt("Enter your custom sticker (emoji or text):", "💖");
+  if (userEmoji && userEmoji.trim() !== "") {
+    // Add to stickers array
+    const newSticker = {
+      emoji: userEmoji.trim(),
+      id: `custom-${Date.now()}`,
+    };
+    stickerButtons.push(newSticker);
+    renderStickerButtons(); // Refresh buttons to include new one
+  }
 });
+
+// Initial render
+renderStickerButtons();
