@@ -249,6 +249,35 @@ clearButton.addEventListener("click", () => {
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
+// Export Button
+const exportButton = document.createElement("button");
+exportButton.textContent = "Export PNG";
+exportButton.id = "export-button";
+document.body.appendChild(exportButton);
+
+exportButton.addEventListener("click", () => {
+  // 1️⃣ Create a temporary high-resolution canvas
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = 1024;
+  exportCanvas.height = 1024;
+  const exportCtx = exportCanvas.getContext("2d");
+  if (!exportCtx) return;
+
+  // 2️⃣ Scale context so drawings fill the larger canvas
+  exportCtx.scale(4, 4); // because 1024 / 256 = 4
+
+  // 3️⃣ Redraw everything except previews
+  for (const stroke of drawing) {
+    stroke.display(exportCtx);
+  }
+
+  // 4️⃣ Convert canvas to PNG and download
+  const link = document.createElement("a");
+  link.download = "sticker_sketchup.png";
+  link.href = exportCanvas.toDataURL("image/png");
+  link.click();
+});
+
 const stickerButtons = [
   { emoji: "🌸", id: "flower-sticker" },
   { emoji: "⭐", id: "star-sticker" },
