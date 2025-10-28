@@ -119,8 +119,8 @@ const context = ctx as CanvasRenderingContext2D;
 function selectTool(thickness: number) {
   currentThickness = thickness;
 
-  thinButton.classList.toggle("selected", thickness === 2);
-  thickButton.classList.toggle("selected", thickness === 8);
+  thinButton.classList.toggle("selected", thickness === 3);
+  thickButton.classList.toggle("selected", thickness === 10);
 }
 
 thinButton.addEventListener("click", () => selectTool(2));
